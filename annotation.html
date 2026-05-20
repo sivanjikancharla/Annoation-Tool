@@ -149,7 +149,7 @@
                 <canvas id="mainCanvas"></canvas>
             </div>
         </div>
-
+        
         <div id="sidebar">
             <div class="sidebar-header">Objects (0)</div>
             <div id="object-list">
@@ -157,6 +157,22 @@
             </div>
         </div>
     </main>
-
+    <script>
+            async function saveToDatabase() {
+        const payload = {
+            filename: currentFileName, // e.g., "car.jpg"
+            annotations: annotations    // our array of boxes
+        };
+        
+        const response = await fetch('http://localhost:8000/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        const result = await response.json();
+        alert(result.message);
+        }
+    </script>
 </body>
 </html>
