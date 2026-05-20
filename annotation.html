@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        body { margin: 0; background: #1e1e1e; color: #ccc; font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; height: 100vh; flex-direction: column; overflow: hidden; }
+        header { height: 40px; background: #333; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid #444; }
+        main { display: flex; flex: 1; overflow: hidden; }
+        
+        /* Left Toolbar */
+        #toolbar { width: 50px; background: #252526; border-right: 1px solid #444; display: flex; flex-direction: column; align-items: center; padding-top: 10px; }
+        .tool-btn { width: 35px; height: 35px; margin-bottom: 10px; background: #3c3c3c; border: 1px solid #555; color: white; cursor: pointer; }
+        .tool-btn.active { border-color: #007acc; background: #007acc; }
+
+        /* Workspace */
+        #workspace { flex: 1; position: relative; overflow: hidden; cursor: crosshair; display: flex; align-items: center; justify-content: center; }
+        canvas { background-color: #000; box-shadow: 0 0 20px rgba(0,0,0,0.5); transform-origin: center; }
+
+        /* Right Sidebar */
+        #sidebar { width: 250px; background: #252526; border-left: 1px solid #444; padding: 10px; }
+        .obj-item { background: #333; padding: 8px; margin-bottom: 5px; border-radius: 4px; font-size: 12px; display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+
+<header>CVAT-Lite Annotator | <span id="mode-status" style="color: #007acc; margin-left: 10px;">IDLE</span></header>
+
+<main>
+    <div id="toolbar">
+        <button class="tool-btn active" title="Rectangle (N)">R</button>
+        <input type="file" id="upload" style="display:none">
+        <button class="tool-btn" onclick="document.getElementById('upload').click()">📁</button>
+    </div>
+
+    <div id="workspace" id="container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div id="sidebar">
+        <h3>Objects</h3>
+        <div id="obj-list"></div>
+    </div>
+</main>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const objList = document.getElementById('obj-list');
+    const statusText = document.getElementById('mode-status');
+
+    let img = new Image();
+    let annotations = [];
+    let scale = 1.0;
+    let isDefining = false;
+    let tempStart = null;
+    let mousePos = { x: 0, y: 0 };
+
+    // --- ZOOM LOGIC (Mouse Wheel) ---
+    window.addEventListener('wheel', (e) => {
+        if (!img.src) return;
+        e.preventDefault();
+        const zoomSpeed = 0.1;
+        if (e.deltaY < 0) scale += zoomSpeed;
+        else scale = Math.max(0.2, scale - zoomSpeed);
+        
+        canvas.style.transform = `scale(${scale})`;
+    }, { passive: false });
+
+    // --- FILE LOADING ---
+    document.getElementById('upload').onchange = (e) => {
+        const reader = new FileReader();
+        reader.onload = (f) => {
+            img.onload = () => {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                scale = 0.5; // Default zoom out to fit
+                canvas.style.transform = `scale(${scale})`;
+                render();
+            };
+            img.src = f.target.result;
+        };
+        reader.readAsDataURL(e.target.files[0]);
+    };
+
+    // --- ANNOTATION LOGIC ---
+    canvas.onmousemove = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        mousePos.x = (e.clientX - rect.left) / scale;
+        mousePos.y = (e.clientY - rect.top) / scale;
+        render();
+    };
+
+    window.onkeydown = (e) => {
+        if (e.key.toLowerCase() === 'n') {
+            if (!isDefining) {
+                tempStart = { ...mousePos };
+                isDefining = true;
+                statusText.innerText = "DRAWING (Press N to finish)";
+            } else {
+                const newBox = {
+                    id: annotations.length + 1,
+                    x: Math.min(tempStart.x, mousePos.x),
+                    y: Math.min(tempStart.y, mousePos.y),
+                    w: Math.abs(mousePos.x - tempStart.x),
+                    h: Math.abs(mousePos.y - tempStart.y)
+                };
+                annotations.push(newBox);
+                updateSidebar();
+                isDefining = false;
+                tempStart = null;
+                statusText.innerText = "IDLE";
+            }
+            render();
+        }
+    };
+
+    function updateSidebar() {
+        objList.innerHTML = '';
+        annotations.forEach(ann => {
+            const div = document.createElement('div');
+            div.className = 'obj-item';
+            div.innerHTML = `<span>Rectangle ${ann.id}</span> <span style="color:#007acc">Box</span>`;
+            objList.appendChild(div);
+        });
+    }
+
+    function render() {
+        if (!img.src) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+
+        // Draw saved
+        ctx.strokeStyle = "#00ff00";
+        ctx.lineWidth = 2 / scale;
+        annotations.forEach(ann => {
+            ctx.strokeRect(ann.x, ann.y, ann.w, ann.h);
+        });
+
+        // Draw preview
+        if (isDefining && tempStart) {
+            ctx.strokeStyle = "yellow";
+            ctx.setLineDash([5 / scale, 5 / scale]);
+            ctx.strokeRect(tempStart.x, tempStart.y, mousePos.x - tempStart.x, mousePos.y - tempStart.y);
+            ctx.setLineDash([]);
+        }
+    }
+</script>
+</body>
+</html>
