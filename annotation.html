@@ -1,148 +1,162 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Annotator UI</title>
     <style>
-        body { margin: 0; background: #1e1e1e; color: #ccc; font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; height: 100vh; flex-direction: column; overflow: hidden; }
-        header { height: 40px; background: #333; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid #444; }
-        main { display: flex; flex: 1; overflow: hidden; }
-        
-        /* Left Toolbar */
-        #toolbar { width: 50px; background: #252526; border-right: 1px solid #444; display: flex; flex-direction: column; align-items: center; padding-top: 10px; }
-        .tool-btn { width: 35px; height: 35px; margin-bottom: 10px; background: #3c3c3c; border: 1px solid #555; color: white; cursor: pointer; }
-        .tool-btn.active { border-color: #007acc; background: #007acc; }
+        :root {
+            --bg-dark: #1e1e1e;
+            --panel-bg: #2d2d2d;
+            --accent: #007acc;
+            --text: #e1e1e1;
+            --border: #444;
+        }
 
-        /* Workspace */
-        #workspace { flex: 1; position: relative; overflow: hidden; cursor: crosshair; display: flex; align-items: center; justify-content: center; }
-        canvas { background-color: #000; box-shadow: 0 0 20px rgba(0,0,0,0.5); transform-origin: center; }
+        body {
+            margin: 0;
+            background: var(--bg-dark);
+            color: var(--text);
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
 
-        /* Right Sidebar */
-        #sidebar { width: 250px; background: #252526; border-left: 1px solid #444; padding: 10px; }
-        .obj-item { background: #333; padding: 8px; margin-bottom: 5px; border-radius: 4px; font-size: 12px; display: flex; justify-content: space-between; }
+        /* --- Header --- */
+        header {
+            height: 50px;
+            background: var(--panel-bg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* --- Main Body --- */
+        main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* --- Left Toolbar --- */
+        #toolbar {
+            width: 60px;
+            background: var(--panel-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px 0;
+            align-items: center;
+        }
+
+        .tool-icon {
+            width: 40px;
+            height: 40px;
+            background: #3c3c3c;
+            border: 1px solid var(--border);
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tool-icon.active {
+            background: var(--accent);
+            border-color: #4fb1ff;
+        }
+
+        /* --- Workspace (Canvas Area) --- */
+        #workspace {
+            flex: 1;
+            position: relative;
+            overflow: auto; /* For scrollbars when zoomed */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-image: radial-gradient(#333 1px, transparent 1px);
+            background-size: 20px 20px; /* Grid background */
+        }
+
+        #canvas-container {
+            position: relative;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+
+        canvas {
+            display: block;
+            cursor: crosshair;
+        }
+
+        /* --- Right Sidebar --- */
+        #sidebar {
+            width: 280px;
+            background: var(--panel-bg);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            font-weight: bold;
+            border-bottom: 1px solid var(--border);
+            background: #383838;
+        }
+
+        #object-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .object-card {
+            background: #3c3c3c;
+            margin-bottom: 8px;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            border-left: 4px solid var(--accent);
+        }
     </style>
 </head>
 <body>
 
-<header>CVAT-Lite Annotator | <span id="mode-status" style="color: #007acc; margin-left: 10px;">IDLE</span></header>
+    <header>
+        <div><strong>Project:</strong> Road_Safety_Test_01</div>
+        <div id="status" style="color: #00ff00;">● System Ready</div>
+        <button style="background: var(--accent); color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">Export JSON</button>
+    </header>
 
-<main>
-    <div id="toolbar">
-        <button class="tool-btn active" title="Rectangle (N)">R</button>
-        <input type="file" id="upload" style="display:none">
-        <button class="tool-btn" onclick="document.getElementById('upload').click()">📁</button>
-    </div>
+    <main>
+        <div id="toolbar">
+            <div class="tool-icon active" title="Draw Rectangle (N)">Rect</div>
+            <div class="tool-icon" title="Pan (Hold Space)">Pan</div>
+            <div class="tool-icon" title="Zoom (Wheel)">🔍</div>
+            <hr style="width: 80%; border-color: #555;">
+            <input type="file" id="fileInput" style="display: none;">
+            <div class="tool-icon" onclick="document.getElementById('fileInput').click()" title="Upload Image">📁</div>
+        </div>
 
-    <div id="workspace" id="container">
-        <canvas id="canvas"></canvas>
-    </div>
+        <div id="workspace">
+            <div id="canvas-container">
+                <canvas id="mainCanvas"></canvas>
+            </div>
+        </div>
 
-    <div id="sidebar">
-        <h3>Objects</h3>
-        <div id="obj-list"></div>
-    </div>
-</main>
+        <div id="sidebar">
+            <div class="sidebar-header">Objects (0)</div>
+            <div id="object-list">
+                <div class="object-card">No annotations yet.</div>
+            </div>
+        </div>
+    </main>
 
-<script>
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const objList = document.getElementById('obj-list');
-    const statusText = document.getElementById('mode-status');
-
-    let img = new Image();
-    let annotations = [];
-    let scale = 1.0;
-    let isDefining = false;
-    let tempStart = null;
-    let mousePos = { x: 0, y: 0 };
-
-    // --- ZOOM LOGIC (Mouse Wheel) ---
-    window.addEventListener('wheel', (e) => {
-        if (!img.src) return;
-        e.preventDefault();
-        const zoomSpeed = 0.1;
-        if (e.deltaY < 0) scale += zoomSpeed;
-        else scale = Math.max(0.2, scale - zoomSpeed);
-        
-        canvas.style.transform = `scale(${scale})`;
-    }, { passive: false });
-
-    // --- FILE LOADING ---
-    document.getElementById('upload').onchange = (e) => {
-        const reader = new FileReader();
-        reader.onload = (f) => {
-            img.onload = () => {
-                canvas.width = img.width;
-                canvas.height = img.height;
-                scale = 0.5; // Default zoom out to fit
-                canvas.style.transform = `scale(${scale})`;
-                render();
-            };
-            img.src = f.target.result;
-        };
-        reader.readAsDataURL(e.target.files[0]);
-    };
-
-    // --- ANNOTATION LOGIC ---
-    canvas.onmousemove = (e) => {
-        const rect = canvas.getBoundingClientRect();
-        mousePos.x = (e.clientX - rect.left) / scale;
-        mousePos.y = (e.clientY - rect.top) / scale;
-        render();
-    };
-
-    window.onkeydown = (e) => {
-        if (e.key.toLowerCase() === 'n') {
-            if (!isDefining) {
-                tempStart = { ...mousePos };
-                isDefining = true;
-                statusText.innerText = "DRAWING (Press N to finish)";
-            } else {
-                const newBox = {
-                    id: annotations.length + 1,
-                    x: Math.min(tempStart.x, mousePos.x),
-                    y: Math.min(tempStart.y, mousePos.y),
-                    w: Math.abs(mousePos.x - tempStart.x),
-                    h: Math.abs(mousePos.y - tempStart.y)
-                };
-                annotations.push(newBox);
-                updateSidebar();
-                isDefining = false;
-                tempStart = null;
-                statusText.innerText = "IDLE";
-            }
-            render();
-        }
-    };
-
-    function updateSidebar() {
-        objList.innerHTML = '';
-        annotations.forEach(ann => {
-            const div = document.createElement('div');
-            div.className = 'obj-item';
-            div.innerHTML = `<span>Rectangle ${ann.id}</span> <span style="color:#007acc">Box</span>`;
-            objList.appendChild(div);
-        });
-    }
-
-    function render() {
-        if (!img.src) return;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-
-        // Draw saved
-        ctx.strokeStyle = "#00ff00";
-        ctx.lineWidth = 2 / scale;
-        annotations.forEach(ann => {
-            ctx.strokeRect(ann.x, ann.y, ann.w, ann.h);
-        });
-
-        // Draw preview
-        if (isDefining && tempStart) {
-            ctx.strokeStyle = "yellow";
-            ctx.setLineDash([5 / scale, 5 / scale]);
-            ctx.strokeRect(tempStart.x, tempStart.y, mousePos.x - tempStart.x, mousePos.y - tempStart.y);
-            ctx.setLineDash([]);
-        }
-    }
-</script>
 </body>
 </html>
